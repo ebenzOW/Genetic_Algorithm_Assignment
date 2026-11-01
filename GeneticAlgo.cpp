@@ -5,10 +5,12 @@
 #include <cmath>
 #include <utility>
 #include <algorithm>
+#include <string>
+#include <filesystem>
 
 using namespace std;
 
-//Setup for randomizer engine
+//Setup for randomizer engine in one place as setting it up is computationally expensive
 static random_device rand_device;
 static mt19937 generator(rand_device());
 
@@ -130,7 +132,7 @@ vector<int> calculateFitnessValues(vector<vector<int>> population, int M, int N)
 }
 
 
-vector<int> geneticAlgorithm(vector<vector<int>>population, vector<int>fitness, int popSize, int generations, int M, int N){
+vector<int> geneticAlgorithm(vector<vector<int>>population, int popSize, int generations, int M, int N){
 
     int gridSize = M * N;
     uniform_int_distribution<int> mutate_distribution(1, 10); // keeping this outside of the loops so we dont need to keep rebuilding distribution
@@ -176,18 +178,72 @@ vector<int> geneticAlgorithm(vector<vector<int>>population, vector<int>fitness, 
     return population.at(best_individual);
 }
 
-int main() {
+int main(int argc, char* argv[]) {
+
+    if(argc < 3)
+    {
+        cout << "Not enough arguments, enter M N for rows and columns of grid, followed by filename.txt for solution text file" << endl;
+        return 1;
+    }
+
+    int M = stoi(argv[1]);
+    int N = stoi(argv[2]);
+
+
+    string fileName = "";
+    int runIndex = 1;
+    while(true) {
+        string candidateFileName = "solution_" + to_string(runIndex) + ".txt";
+        if(!filesystem::exists(candidateFileName)){
+            fileName = candidateFileName;
+            break;
+        }
+        runIndex++;
+    }
+
+
+    ofstream solutionFile(fileName);
+    ofstream solutionCostFile("solution_cost.txt", ios::app); //opening file in append mode to not overwrite previous costs
 
     int popSize = 100;
-    int M = 4;
-    int N = 5;
-
+    int generations = 1000;
 
     vector<vector<int>> population = initializePopulation(popSize, M, N);
+    vector<int> geneticPopulation = geneticAlgorithm(population, popSize, generations, M, N);
+    int cost = calculateCost(geneticPopulation, M, N);
 
+    std::cout << "\n========================================\n";
+    std::cout << "Grid Dimensions: " << M << " x " << N << "\n";
+    std::cout << "Total Cost: " << cost << "\n";
+    std::cout << "Solution Grid:\n";
 
+    if(solutionFile.is_open()){
+        int currentCell = 0;
+        for (int r = 0; r < M; r++)
+        {
+            for (int c = 0; c < N; c++)
+            {
+                currentCell = r * N + c;
+                solutionFile <<  geneticPopulation.at(currentCell);
+                cout << geneticPopulation.at(currentCell);
+                if(c < N - 1){
+                    solutionFile << ",";
+                    cout << "\t";
+                }
+            }
+            solutionFile << "\n";
+            cout << "\n";
+        }
+        solutionFile.close();
+        cout << fileName << " created." << endl;
+    }
 
-
+    if(solutionCostFile.is_open()){
+        solutionCostFile << fileName << "cost value: " << cost << "\n";
+        cout << "cost value: " << cost << "\n";
+        solutionCostFile.close();
+        cout << "solution_cost.txt updated." << endl;
+    }
 
 
     return 0;
